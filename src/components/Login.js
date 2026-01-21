@@ -1,11 +1,17 @@
 import Header from "./Header"
 import { isValidData } from "../utils/Validate"
 import { useState,useRef } from "react"
+import { useNavigate } from "react-router-dom";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword,updateProfile } from "firebase/auth";
+import {auth} from "../utils/firebase";
+import { useDispatch } from "react-redux";
+import { setUser } from "../utils/userSlice";
 
 const Login = () => {
     const [isSignInForm, setIsSignInForm] = useState(true);
     const [errMessage, setErrMessage] = useState(null);
-
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
     const emailRef = useRef(null);
     const passwordRef = useRef(null);
     const confirmPasswordRef = useRef(null);
@@ -18,6 +24,54 @@ const Login = () => {
         const name = isSignInForm ? "LoginUser" : nameRef.current.value;
         const validationMessage = isValidData(email, password, confirmPassword, name);
         setErrMessage(validationMessage);
+
+        if(validationMessage) return;
+
+        if(isSignInForm) {
+            // Handle Sign In Logic Here
+            signInWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => {
+            // Signed in 
+            const user = userCredential.user;
+            console.log("Signing In:", {user});
+            navigate('/browse');
+            })
+            .catch((error) => {
+                const errorCode = error.code;
+                const errorMessage = error.message;
+                setErrMessage( errorCode+" - "+ errorMessage);
+            });} 
+        else {
+            // Handle Sign Up Logic Here
+            createUserWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => {
+                const user = userCredential.user;
+                updateProfile(user, {
+                    displayName: name,
+                    
+                }).then(() => {
+                    const {uid,email,displayName} = auth.currentUser;
+                            dispatch(setUser({uid,email,displayName}));
+                    navigate('/browse');
+                }).catch((error) => {
+                    setErrMessage(error.message);
+                });
+            })
+  // An error occurred
+  // ...
+            
+            .then((userCredential) => {
+            // Signed up 
+                const user = userCredential.user;
+                console.log("Signing Up:", {user});
+                navigate('/browse');
+            })
+            .catch((error) => {
+                const errorCode = error.code;
+                const errorMessage = error.message;
+                setErrMessage( errorCode+" - "+ errorMessage);
+            });
+        }
     }
   return (
     <div>
